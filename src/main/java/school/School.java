@@ -7,7 +7,6 @@ public class School {
 
     private static School instance = new School();
 
-    private static final String SCHOOL_NAME = "Good School";
     private final List<Student> studentList = new ArrayList<>();
     private List<Subject> subjectList = new ArrayList<>();
 

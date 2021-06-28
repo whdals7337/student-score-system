@@ -1,15 +1,13 @@
 package school.report;
 
-import grade.BasicGradeStrategy;
-import grade.GradeStrategy;
-import grade.MajorGradeStrategy;
-import grade.PassFailGradeStrategy;
+import grade.*;
 import school.School;
 import school.Score;
 import school.Student;
 import school.Subject;
 import utill.Define;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class GenerateGradeReport {
@@ -33,16 +31,16 @@ public class GenerateGradeReport {
     public void makeHeader(Subject subject){
         buffer.append(GenerateGradeReport.LINE);
         buffer.append("\t").append(subject.getSubjectName());
-        buffer.append(GenerateGradeReport.TITLE );
-        buffer.append(GenerateGradeReport.HEADER );
+        buffer.append(GenerateGradeReport.TITLE);
+        buffer.append(GenerateGradeReport.HEADER);
         buffer.append(GenerateGradeReport.LINE);
     }
 
     public void makeBody(Subject subject){
 
-        List<Student> studentList = subject.getStudentList();  // 각 과목의 학생들
+        List<Student> studentOfSubject = subject.getStudentList();  // 각 과목의 학생들
 
-        for (Student student : studentList) {
+        for (Student student : studentOfSubject) {
             buffer.append(student.getStudentName());
             buffer.append(" | ");
             buffer.append(student.getStudentId());
@@ -50,38 +48,54 @@ public class GenerateGradeReport {
             buffer.append(student.getMajorSubject().getSubjectName()).append("\t");
             buffer.append(" | ");
 
-            getScoreGrade(student, subject);  //학생별 해당과목 학점 계산
+            List<String[]> scoreAndGrades = getScoresAndGrades(student, subject);//학생별 해당과목 학점 계산
+            for (String[] scoreAndGrade : scoreAndGrades) {
+                buffer.append(scoreAndGrade[0]);
+                buffer.append(":");
+                buffer.append(scoreAndGrade[1]);
+                buffer.append(" | ");
+            }
             buffer.append("\n");
             buffer.append(LINE);
         }
     }
 
-    public void getScoreGrade(Student student, Subject subject){
-
-        List<Score> scoreList = student.getScoreList();
+    public List<String[]> getScoresAndGrades(Student student, Subject subject){
+        List<Score> scoresOfStudent = student.getScoreList();
         int majorId = student.getMajorSubject().getSubjectId();
 
-        GradeStrategy[] gradeStrategies = {new BasicGradeStrategy(), new MajorGradeStrategy(), new PassFailGradeStrategy()};  //학점 평가 클래스들
+        List<String[]> temp = new ArrayList<>();
+        for (Score score : scoresOfStudent) {
 
-        for (Score score : scoreList) {  // 학생이 가진 점수들
-
-            if (score.getSubject().getSubjectId() == subject.getSubjectId()) {  // 현재 학점을 산출할 과목
-                String grade;
-
-                if (subject.getGradeType() == Define.PF_TYPE) {
-                    grade = gradeStrategies[Define.PF_TYPE].getGrade(score.getPoint());
-                } else {
-                    if (score.getSubject().getSubjectId() == majorId)  // 중점 과목인 경우
-                        grade = gradeStrategies[Define.SAB_TYPE].getGrade(score.getPoint());//중점 과목 학점 평가 방법
-                    else
-                        grade = gradeStrategies[Define.AB_TYPE].getGrade(score.getPoint()); // 중점 과목이 아닌 경우
-                }
-                buffer.append(score.getPoint());
-                buffer.append(":");
-                buffer.append(grade);
-                buffer.append(" | ");
+            if (isTargetSubject(score.getSubject(), subject)) {
+                String grade = calculateGrade(subject, score, majorId);
+                temp.add(new String[]{String.valueOf(score.getPoint()), grade});
             }
         }
+        return temp;
+    }
+    public boolean isTargetSubject(Subject scoreSubject, Subject subject) {
+        return scoreSubject.getSubjectId() == subject.getSubjectId();
+    }
+
+    public String calculateGrade(Subject subject, Score score, int majorId) {
+        GradeStrategyFactory gradeStrategyFactory = new GradeStrategyFactory();
+
+        if(isPFSubject(subject)) {
+            return gradeStrategyFactory.getGradeStrategy(Define.PF_TYPE).getGrade(score.getPoint());
+        }
+        if(isMajorSubject(score, majorId)) {
+            return gradeStrategyFactory.getGradeStrategy(Define.SAB_TYPE).getGrade(score.getPoint());
+        }
+        return gradeStrategyFactory.getGradeStrategy(Define.AB_TYPE).getGrade(score.getPoint());
+    }
+
+    public boolean isPFSubject(Subject subject) {
+        return subject.getGradeType() == Define.PF_TYPE;
+    }
+
+    public boolean isMajorSubject(Score score, int majorId) {
+        return score.getSubject().getSubjectId() == majorId;
     }
 
     public void makeFooter(){
